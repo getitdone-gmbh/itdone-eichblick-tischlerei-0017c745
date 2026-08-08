@@ -68,23 +68,34 @@ const server = http.createServer((req, res) => {
     console.error('Antwort-Fehler (abgefangen):', err.message);
   });
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
-  const pathname = decodeURIComponent(parsedUrl.pathname);
+  let pathname = decodeURIComponent(parsedUrl.pathname);
+  // Trailing Slash ignorieren (z. B. /kontakt/ soll wie /kontakt behandelt werden)
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
 
-  if (req.method === 'POST' && pathname === '/kontakt') {
-    parseFormBody(req, (data) => {
-      const eintrag = {
-        name: data.name || '',
-        email: data.email || '',
-        telefon: data.telefon || '',
-        nachricht: data.nachricht || '',
-        zeit: new Date().toISOString(),
-      };
-      anfragen.push(eintrag);
-      console.log('Neue Kontaktanfrage:', eintrag.name, eintrag.email);
+  if (pathname === '/kontakt') {
+    if (req.method === 'POST') {
+      parseFormBody(req, (data) => {
+        const eintrag = {
+          name: data.name || '',
+          email: data.email || '',
+          telefon: data.telefon || '',
+          nachricht: data.nachricht || '',
+          zeit: new Date().toISOString(),
+        };
+        anfragen.push(eintrag);
+        console.log('Neue Kontaktanfrage:', eintrag.name, eintrag.email);
 
-      const safeName = escapeHtml(eintrag.name || 'Ihnen');
-      serveDankePage(res, safeName);
-    });
+        const safeName = escapeHtml(eintrag.name || 'Ihnen');
+        serveDankePage(res, safeName);
+      });
+      return;
+    }
+    // GET/HEAD auf /kontakt (z. B. durch Monitoring-Aufrufe oder direkten Linkklick):
+    // freundlich zum Kontaktformular auf der Startseite weiterleiten statt 404.
+    res.writeHead(302, { Location: '/#kontakt' });
+    res.end();
     return;
   }
 
