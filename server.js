@@ -56,7 +56,17 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+process.on('uncaughtException', (err) => {
+  console.error('Unerwarteter Fehler (abgefangen):', err);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('Unerwartete Promise-Ablehnung (abgefangen):', err);
+});
+
 const server = http.createServer((req, res) => {
+  res.on('error', (err) => {
+    console.error('Antwort-Fehler (abgefangen):', err.message);
+  });
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = decodeURIComponent(parsedUrl.pathname);
 
@@ -126,6 +136,16 @@ function serveDankePage(res, safeName) {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(html);
 }
+
+server.on('error', (err) => {
+  console.error('Server-Fehler (abgefangen):', err.message);
+});
+
+// Höher als der Idle-Timeout des vorgeschalteten Reverse-Proxys/Ingress,
+// sonst schließt Node die Verbindung, während der Proxy sie noch nutzt –
+// das äußert sich nach außen als sporadischer Timeout/„nicht erreichbar".
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Eichblick Tischlerei läuft auf Port ${PORT}`);
