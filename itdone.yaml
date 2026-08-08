@@ -1,0 +1,9 @@
+version: "1"
+services:
+  app:
+    path: ./app
+    port: 8080
+addons:
+  db:
+    type: postgres
+    attachTo: [app]
